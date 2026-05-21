@@ -197,7 +197,8 @@ jobs:
             platform: osx-64
             python_version: "3.11"
             arch: x86_64
-            lapack: mkl
+            env_lapack: mkl
+            cache_lapack: mkl
             artifact_name: wheel-macos-x86_64
             extra_cmake_args: "-D CMAKE_OSX_ARCHITECTURES=x86_64 -D CMAKE_CXX_FLAGS=-Wno-deprecated-declarations -D CMAKE_SHARED_LINKER_FLAGS=-Wl,-w"
           - name: macOS arm64
@@ -205,7 +206,8 @@ jobs:
             platform: osx-arm64
             python_version: "3.11"
             arch: arm64
-            lapack: accelerate
+            env_lapack: accelerate
+            cache_lapack: conda
             artifact_name: wheel-macos-arm64
             extra_cmake_args: "-D CMAKE_OSX_ARCHITECTURES=arm64 -D CMAKE_CXX_FLAGS=-Wno-deprecated-declarations -D CMAKE_SHARED_LINKER_FLAGS=-Wl,-w"
     defaults:
@@ -247,7 +249,7 @@ jobs:
             --name p4build \
             --python "${{ matrix.python_version }}" \
             --platform "${{ matrix.platform }}" \
-            --lapack "${{ matrix.lapack }}" \
+            --lapack "${{ matrix.env_lapack }}" \
             --disable docs \
             --offline-conda
           python devtools/scripts/prepare_wheel_env.py env_p4build.yaml
@@ -270,7 +272,7 @@ jobs:
       - name: Build wheel
         run: |
           numpy_include="$(python -c 'import numpy; print(numpy.get_include())')"
-          python conda/psi4-path-advisor.py cache --objdir objdir --insist --lapack "${{ matrix.lapack }}"
+          python conda/psi4-path-advisor.py cache --objdir objdir --insist --lapack "${{ matrix.cache_lapack }}"
           # Bundle basis_set_exchange into the wheel stage instead of requiring
           # it to be importable from the transient conda build environment.
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON -D ENABLE_bse=ON -D CMAKE_DISABLE_FIND_PACKAGE_bse=ON -D Python_NumPy_INCLUDE_DIR=${numpy_include} ${{ matrix.extra_cmake_args }}"
