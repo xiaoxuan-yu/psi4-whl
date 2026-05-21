@@ -156,7 +156,7 @@ jobs:
         run: |
           python conda/psi4-path-advisor.py cache --objdir objdir --insist
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON"
-          python -m build --wheel --no-isolation
+          python -m build --wheel --no-isolation --skip-dependency-check
 
       - name: Repair wheel
         run: |
@@ -266,7 +266,7 @@ jobs:
           numpy_include="$(python -c 'import numpy; print(numpy.get_include())')"
           python conda/psi4-path-advisor.py cache --objdir objdir --insist
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON -D Python_NumPy_INCLUDE_DIR=${numpy_include} ${{ matrix.extra_cmake_args }}"
-          python -m build --wheel --no-isolation
+          python -m build --wheel --no-isolation --skip-dependency-check
 
       - name: Repair wheel
         run: |
@@ -361,7 +361,7 @@ jobs:
         run: |
           python conda/psi4-path-advisor.py cache --objdir objdir --insist
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON -D CMAKE_C_COMPILER=clang-cl -D CMAKE_CXX_COMPILER=clang-cl -D psi4_SKIP_ENABLE_Fortran=ON -D ENABLE_XHOST=OFF -D CMAKE_CXX_FLAGS=/arch:AVX"
-          python -m build --wheel --no-isolation
+          python -m build --wheel --no-isolation --skip-dependency-check
 
       - name: Repair wheel
         run: |
