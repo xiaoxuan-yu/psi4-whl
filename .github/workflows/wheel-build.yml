@@ -133,6 +133,7 @@ jobs:
             --name p4build \
             --python 3.11 \
             --platform linux-64 \
+            --lapack mkl \
             --disable docs \
             --offline-conda
           "${MANYLINUX_PYTHON}" devtools/scripts/prepare_wheel_env.py env_p4build.yaml
@@ -154,7 +155,7 @@ jobs:
 
       - name: Build wheel
         run: |
-          python conda/psi4-path-advisor.py cache --objdir objdir --insist
+          python conda/psi4-path-advisor.py cache --objdir objdir --insist --lapack mkl
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON"
           python -m build --wheel --no-isolation --skip-dependency-check
 
@@ -194,6 +195,7 @@ jobs:
             platform: osx-64
             python_version: "3.11"
             arch: x86_64
+            lapack: mkl
             artifact_name: wheel-macos-x86_64
             extra_cmake_args: "-D CMAKE_OSX_ARCHITECTURES=x86_64 -D CMAKE_CXX_FLAGS=-Wno-deprecated-declarations -D CMAKE_SHARED_LINKER_FLAGS=-Wl,-w"
           - name: macOS arm64
@@ -201,6 +203,7 @@ jobs:
             platform: osx-arm64
             python_version: "3.11"
             arch: arm64
+            lapack: accelerate
             artifact_name: wheel-macos-arm64
             extra_cmake_args: "-D CMAKE_OSX_ARCHITECTURES=arm64 -D CMAKE_CXX_FLAGS=-Wno-deprecated-declarations -D CMAKE_SHARED_LINKER_FLAGS=-Wl,-w"
     defaults:
@@ -242,6 +245,7 @@ jobs:
             --name p4build \
             --python "${{ matrix.python_version }}" \
             --platform "${{ matrix.platform }}" \
+            --lapack "${{ matrix.lapack }}" \
             --disable docs \
             --offline-conda
           python devtools/scripts/prepare_wheel_env.py env_p4build.yaml
@@ -264,7 +268,7 @@ jobs:
       - name: Build wheel
         run: |
           numpy_include="$(python -c 'import numpy; print(numpy.get_include())')"
-          python conda/psi4-path-advisor.py cache --objdir objdir --insist
+          python conda/psi4-path-advisor.py cache --objdir objdir --insist --lapack "${{ matrix.lapack }}"
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON -D Python_NumPy_INCLUDE_DIR=${numpy_include} ${{ matrix.extra_cmake_args }}"
           python -m build --wheel --no-isolation --skip-dependency-check
 
@@ -334,6 +338,7 @@ jobs:
             --name p4build \
             --python 3.11 \
             --platform win-64 \
+            --lapack mkl \
             --disable docs \
             --offline-conda
           python devtools/scripts/prepare_wheel_env.py env_p4build.yaml
@@ -359,7 +364,7 @@ jobs:
 
       - name: Build wheel
         run: |
-          python conda/psi4-path-advisor.py cache --objdir objdir --insist
+          python conda/psi4-path-advisor.py cache --objdir objdir --insist --lapack mkl
           export CMAKE_ARGS="-C ${GITHUB_WORKSPACE}/cache_p4build@objdir.cmake -D CMAKE_VERBOSE_MAKEFILE=OFF -D psi4_ENABLE_PRECOMPILE_HEADERS=ON -D CMAKE_C_COMPILER=clang-cl -D CMAKE_CXX_COMPILER=clang-cl -D psi4_SKIP_ENABLE_Fortran=ON -D ENABLE_XHOST=OFF -D CMAKE_CXX_FLAGS=/arch:AVX"
           python -m build --wheel --no-isolation --skip-dependency-check
 
