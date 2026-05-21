@@ -23,7 +23,7 @@ def main() -> None:
     parser.add_argument(
         "--add",
         action="append",
-        default=["build"],
+        default=[],
         help="Dependency spec to append if missing. May be passed multiple times.",
     )
     parser.add_argument(
