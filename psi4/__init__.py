@@ -35,31 +35,45 @@ isort:skip_file
 # * some full paths are computed here using the prefix, but all outputs are relative to __file__, so relocatability preserved
 # * note that all path entities are directories except for "executable" that is a file
 import os
+import sysconfig
 from pathlib import Path
 psi4_module_loc = Path(__file__).resolve().parent
+psi4_wheel_mode = "@PSI4_WHEEL_MODE@".upper() in ["1", "ON", "YES", "TRUE", "Y"]
 
-prefix = Path(r"@CMAKE_INSTALL_PREFIX@".replace("\\", "/"))
-cmake_install_bindir = r"@CMAKE_INSTALL_BINDIR@".replace("\\", "/")
-cmake_install_datadir = r"@CMAKE_INSTALL_DATADIR@".replace("\\", "/")
-cmake_install_libdir = r"@CMAKE_INSTALL_LIBDIR@".replace("\\", "/")
-pymod_install_libdir = r"@PYMOD_INSTALL_LIBDIR@".lstrip("/")
-full_pymod = (prefix / cmake_install_libdir / pymod_install_libdir / "psi4").resolve()
-full_data = (prefix / cmake_install_datadir / "psi4").resolve()
-full_bin = (prefix / cmake_install_bindir).resolve()
-rel_data = os.path.relpath(full_data, start=full_pymod)
-rel_bin = os.path.relpath(full_bin, start=full_pymod)
+if psi4_wheel_mode:
+    prefix = Path(sysconfig.get_path("data")).resolve()
+    full_pymod = psi4_module_loc
+    full_data = prefix / "share" / "psi4"
+    full_bin = Path(sysconfig.get_path("scripts")).resolve()
+    executable_candidates = [full_bin / "psi4"]
+    if os.name == "nt":
+        executable_candidates.insert(0, full_bin / "psi4.exe")
+    executable = next((path for path in executable_candidates if path.exists()), executable_candidates[0])
+    data_dir = full_data
+else:
+    prefix = Path(r"@CMAKE_INSTALL_PREFIX@".replace("\\", "/"))
+    cmake_install_bindir = r"@CMAKE_INSTALL_BINDIR@".replace("\\", "/")
+    cmake_install_datadir = r"@CMAKE_INSTALL_DATADIR@".replace("\\", "/")
+    cmake_install_libdir = r"@CMAKE_INSTALL_LIBDIR@".replace("\\", "/")
+    pymod_install_libdir = r"@PYMOD_INSTALL_LIBDIR@".lstrip("/")
+    full_pymod = (prefix / cmake_install_libdir / pymod_install_libdir / "psi4").resolve()
+    full_data = (prefix / cmake_install_datadir / "psi4").resolve()
+    full_bin = (prefix / cmake_install_bindir).resolve()
+    rel_data = os.path.relpath(full_data, start=full_pymod)
+    rel_bin = os.path.relpath(full_bin, start=full_pymod)
 
-executable = psi4_module_loc.joinpath(rel_bin, "psi4")
-executable_exe = (Path(r"/opt/anaconda1anaconda2anaconda3") / "Scripts" / "psi4.exe").resolve(strict=False)
-if executable_exe.exists():
-    # Win conda-build generates this unbeknownst to CMake
-    executable = executable_exe
-executable = str(executable.resolve())
+    executable = psi4_module_loc.joinpath(rel_bin, "psi4")
+    executable_exe = (Path(r"/opt/anaconda1anaconda2anaconda3") / "Scripts" / "psi4.exe").resolve(strict=False)
+    if executable_exe.exists():
+        # Win conda-build generates this unbeknownst to CMake
+        executable = executable_exe
+    data_dir = psi4_module_loc.joinpath(rel_data)
 
-data_dir = psi4_module_loc.joinpath(rel_data)
+executable = str(executable.resolve(strict=False))
+
 if "PSIDATADIR" in os.environ.keys():
     data_dir = Path(os.path.expanduser(os.environ["PSIDATADIR"]))
-elif "CMAKE_INSTALL_DATADIR" in str(data_dir):
+elif (not psi4_wheel_mode) and "CMAKE_INSTALL_DATADIR" in str(data_dir):
     data_dir = Path(os.path.sep.join([os.path.abspath(os.path.dirname(__file__)), "share", "psi4"]))
 
 data_dir = data_dir.resolve(strict=False)
@@ -80,8 +94,7 @@ if "PSI_SCRATCH" in os.environ.keys():
     core.IOManager.shared_object().set_default_path(envvar_scratch)
 
 core.set_datadir(data_dir)
-del cmake_install_bindir, cmake_install_datadir, cmake_install_libdir, pymod_install_libdir
-del psi4_module_loc, prefix, full_pymod, full_data, full_bin, rel_data, rel_bin, data_dir, executable_exe
+del psi4_module_loc, prefix, full_pymod, full_data, full_bin, data_dir, psi4_wheel_mode
 
 # Cleanup core at exit
 import atexit

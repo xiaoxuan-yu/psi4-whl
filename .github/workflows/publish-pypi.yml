@@ -1,0 +1,89 @@
+name: publish-pypi
+
+on:
+  workflow_dispatch:
+    inputs:
+      run-id:
+        description: "Successful build-wheel run ID to publish from"
+        required: true
+        type: string
+      target:
+        description: "Package index target"
+        required: true
+        type: choice
+        default: pypi
+        options:
+          - testpypi
+          - pypi
+
+permissions:
+  actions: read
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Download build metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: build-metadata
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ github.token }}
+          path: build-metadata
+
+      - id: meta
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path("build-metadata/wheel-build-metadata.json").read_text())
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+              handle.write(f"overlay_ref={data['overlay_ref']}\n")
+              handle.write(f"release_tag={data['release_tag']}\n")
+              handle.write(f"release_version={data['release_version']}\n")
+          PY
+
+      - name: Pin repository to build overlay ref
+        run: |
+          git fetch origin "${{ steps.meta.outputs.overlay_ref }}" --depth=1
+          git checkout --detach FETCH_HEAD
+
+      - name: Download wheel artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheel-*
+          run-id: ${{ inputs.run-id }}
+          github-token: ${{ github.token }}
+          merge-multiple: true
+          path: wheelhouse
+
+      - name: Install verification helper
+        run: python -m pip install packaging
+
+      - name: Verify wheelhouse
+        run: python devtools/scripts/verify_wheelhouse.py wheelhouse --expect-version "${{ steps.meta.outputs.release_version }}"
+
+      - name: Publish to TestPyPI
+        if: ${{ inputs.target == 'testpypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheelhouse
+          repository-url: https://test.pypi.org/legacy/
+
+      - name: Publish to PyPI
+        if: ${{ inputs.target == 'pypi' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheelhouse

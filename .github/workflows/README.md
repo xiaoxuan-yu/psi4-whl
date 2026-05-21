@@ -37,3 +37,49 @@
 * Results
   * archived tarball of HTML docs (download from Actions, Archives, then unpack and view in browser)
 
+----
+
+## [upstream-release-sync.yml](./upstream-release-sync.yml)
+
+* Since: May 2026
+* Runs on: schedule, manual dispatch
+* Goals:
+  * detect the latest upstream `psi4/psi4` final release tag
+  * sync that raw tag into this fork without baking wheel patches into the tag itself
+  * dispatch the wheel build workflow against `upstream tag + fork overlay`
+
+----
+
+## [wheel-build.yml](./wheel-build.yml)
+
+* Since: May 2026
+* Runs on: manual dispatch, repository dispatch, tag push when workflow file exists on the pushed ref
+* Goals:
+  * build four wheel lanes: Linux `x86_64`, macOS Intel `x86_64`, macOS Apple Silicon `arm64`, Windows `x86_64`
+  * repair each wheel for redistribution
+  * smoke-test each repaired wheel once
+  * upload reusable artifacts for later publishing
+
+----
+
+## [publish-release.yml](./publish-release.yml)
+
+* Since: May 2026
+* Runs on: manual dispatch
+* Goals:
+  * download an already-tested wheel set from a successful `build-wheel` run
+  * pin verification logic to the same fork overlay commit used by that build
+  * verify wheel metadata and lane completeness
+  * create or update the fork GitHub Release and upload the wheels without rebuilding
+
+----
+
+## [publish-pypi.yml](./publish-pypi.yml)
+
+* Since: May 2026
+* Runs on: manual dispatch
+* Goals:
+  * download an already-tested wheel set from a successful `build-wheel` run
+  * pin verification logic to the same fork overlay commit used by that build
+  * verify wheel metadata and lane completeness
+  * publish the verified artifacts to TestPyPI or PyPI without rebuilding

@@ -1,0 +1,66 @@
+[build-system]
+requires = [
+  "scikit-build-core>=0.12.2",
+  "cmake>=3.19",
+  "ninja>=1.11",
+]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "psi4-whl"
+dynamic = ["version"]
+description = "Prebuilt Psi4 wheels published as psi4-whl while preserving import psi4."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "LGPL-3.0-only" }
+authors = [
+  { name = "Psi4 Developers" },
+]
+keywords = ["chemistry", "psi4", "quantum-chemistry", "wheel"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+  "Operating System :: MacOS",
+  "Operating System :: Microsoft :: Windows",
+  "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering :: Chemistry",
+]
+dependencies = [
+  "numpy",
+  "optking",
+  "pydantic>=1.10.17,<3",
+  "qcelemental",
+  "qcengine",
+  "qcmanybody>=0.5.1",
+  "scipy",
+]
+
+[project.urls]
+Homepage = "https://github.com/xiaoxuan-yu/psi4-whl"
+Repository = "https://github.com/xiaoxuan-yu/psi4-whl"
+Upstream = "https://github.com/psi4/psi4"
+
+[project.scripts]
+psi4 = "psi4.cli:main"
+
+[tool.scikit-build]
+build.verbose = true
+build-dir = "build/{wheel_tag}"
+cmake.version = ">=3.19"
+logging.level = "INFO"
+ninja.version = ">=1.11"
+sdist.cmake = false
+wheel.install-dir = ""
+wheel.packages = []
+
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "psi4/metadata.py"
+regex = "^__version__ = ['\\\"](?P<value>[^'\\\"]+)['\\\"]"

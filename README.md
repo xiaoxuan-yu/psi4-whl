@@ -32,6 +32,19 @@ With computationally demanding portions written in C++, exports
 of many C++ classes into Python via Pybind11, and a flexible Python driver, Psi4
 strives to be friendly to both users and developers.
 
+## psi4-whl fork
+
+This fork publishes prebuilt wheels to PyPI under the distribution name `psi4-whl`.
+
+* Install with `pip install --only-binary=:all: psi4-whl`
+* Import with `import psi4`
+* Release versions follow upstream `psi4/psi4` release tags
+* Upstream tags remain the source of truth; wheel-specific packaging files are overlaid only during CI builds
+* Release flow is intentionally split into three steps to avoid repeated testing cost:
+  * `build-wheel`: compile, repair, and smoke-test the four platform wheels once
+  * `publish-release`: attach the already-tested wheels to the fork GitHub Release
+  * `publish-pypi`: publish the same verified wheel set to TestPyPI or PyPI
+
 * **Users' Website**  www.psicode.org
 
 * **Downloading and Installing Psi4** https://psicode.org/psi4manual/master/build_faq.html (for the CMake adept, see [CMakeLists.txt](CMakeLists.txt#L27)

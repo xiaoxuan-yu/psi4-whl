@@ -1,0 +1,92 @@
+name: upstream-release-sync
+
+on:
+  schedule:
+    - cron: "23 5 * * *"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Explicit upstream release tag to sync, e.g. v1.10"
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - id: upstream
+        uses: actions/github-script@v7
+        env:
+          REQUESTED_TAG: ${{ inputs.tag }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            const requestedTag = process.env.REQUESTED_TAG;
+            let release;
+            if (requestedTag) {
+              release = (await github.rest.repos.getReleaseByTag({
+                owner: "psi4",
+                repo: "psi4",
+                tag: requestedTag,
+              })).data;
+            } else {
+              release = (await github.rest.repos.getLatestRelease({
+                owner: "psi4",
+                repo: "psi4",
+              })).data;
+            }
+            if (release.draft || release.prerelease) {
+              core.setFailed(`Refusing to sync non-final release ${release.tag_name}`);
+              return;
+            }
+            core.setOutput("tag", release.tag_name);
+
+      - id: sync
+        env:
+          RELEASE_TAG: ${{ steps.upstream.outputs.tag }}
+        run: |
+          if [[ -z "$RELEASE_TAG" ]]; then
+            echo "No release tag resolved" >&2
+            exit 1
+          fi
+
+          if git ls-remote --exit-code --tags origin "refs/tags/${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "already_synced=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if git remote get-url upstream >/dev/null 2>&1; then
+            git remote set-url upstream https://github.com/psi4/psi4.git
+          else
+            git remote add upstream https://github.com/psi4/psi4.git
+          fi
+          git fetch upstream "refs/tags/${RELEASE_TAG}:refs/tags/${RELEASE_TAG}"
+          git push origin "refs/tags/${RELEASE_TAG}"
+          echo "already_synced=false" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch build-wheel
+        if: ${{ steps.sync.outputs.already_synced == 'false' }}
+        uses: actions/github-script@v7
+        env:
+          OVERLAY_REF: ${{ github.sha }}
+          RELEASE_TAG: ${{ steps.upstream.outputs.tag }}
+        with:
+          github-token: ${{ github.token }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              event_type: "build-wheel",
+              client_payload: {
+                tag: process.env.RELEASE_TAG,
+                overlay_ref: process.env.OVERLAY_REF,
+              },
+            });

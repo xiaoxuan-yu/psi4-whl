@@ -312,10 +312,13 @@ install(FILES ${CMAKE_CURRENT_BINARY_DIR}/metadata.py
 
     # <<<  install bin/  >>>
 configure_file(run_psi4.py psi4 @ONLY)
-install(PROGRAMS ${CMAKE_BINARY_DIR}/psi4
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
+configure_file(run_psi4.py run_psi4.py @ONLY)
+if(NOT PSI4_WHEEL_MODE)
+    install(PROGRAMS ${CMAKE_BINARY_DIR}/psi4
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_BINDIR})
+endif()
 
-if(WIN32)
+if(WIN32 AND NOT PSI4_WHEEL_MODE)
     # Generate a batch script, which wraps "bin/psi4" script to "python bin/psi4"
     configure_file(psi4.bat psi4.bat @ONLY)
     install(PROGRAMS ${CMAKE_BINARY_DIR}/psi4.bat
@@ -333,6 +336,8 @@ if(NOT ENABLE_CYTHONIZE)
 endif()
 
 install(FILES header.py
+              ${CMAKE_BINARY_DIR}/run_psi4.py
+              cli.py
         DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}${PYMOD_INSTALL_LIBDIR}/psi4)
 
 configure_file(__init__.py __init__.py @ONLY)
@@ -477,4 +482,3 @@ configure_package_config_file(
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/${psi4_INSTALL_CMAKEDIR}/psi4Config.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/${psi4_INSTALL_CMAKEDIR}/psi4ConfigVersion.cmake
         DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKECONFIG_INSTALL_DIR})
-

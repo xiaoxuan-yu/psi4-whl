@@ -35,6 +35,7 @@ import json
 import os
 import re
 import sys
+import sysconfig
 import warnings
 from pathlib import Path
 
@@ -125,31 +126,47 @@ args = args.__dict__  # Namespace object seems silly
 # * some full paths are computed here using the prefix, but all outputs are relative to __file__, so relocatability preserved
 # * note that all path entities are directories except for "executable" that is a file
 executable = Path(__file__).resolve()
-psi4_exe_loc = executable.parent
+psi4_wheel_mode = "@PSI4_WHEEL_MODE@".upper() in ["1", "ON", "YES", "TRUE", "Y"]
 
-prefix = Path(r"@CMAKE_INSTALL_PREFIX@".replace("\\", "/"))
-cmake_install_bindir = r"@CMAKE_INSTALL_BINDIR@".replace("\\", "/")
-cmake_install_datadir = r"@CMAKE_INSTALL_DATADIR@".replace("\\", "/")
-cmake_install_libdir = r"@CMAKE_INSTALL_LIBDIR@".replace("\\", "/")
-pymod_install_libdir = r"@PYMOD_INSTALL_LIBDIR@".lstrip("/")
-psi4_install_cmakedir = r"@psi4_INSTALL_CMAKEDIR@".replace("\\", "/")
-full_pymod = (prefix / cmake_install_libdir / pymod_install_libdir / "psi4").resolve()
-full_data = (prefix / cmake_install_datadir / "psi4").resolve()
-full_bin = (prefix / cmake_install_bindir).resolve()
-full_cmake = (prefix / psi4_install_cmakedir).resolve()
-rel_pymod = os.path.relpath(full_pymod, start=full_bin)
-rel_data = os.path.relpath(full_data, start=full_bin)
-rel_cmake = os.path.relpath(full_cmake, start=full_bin)
+if psi4_wheel_mode:
+    prefix = Path(sysconfig.get_path("data")).resolve()
+    psi4_exe_loc = Path(sysconfig.get_path("scripts")).resolve()
+    full_pymod = Path(sysconfig.get_path("platlib")).resolve() / "psi4"
+    full_data = prefix / "share" / "psi4"
+    full_bin = psi4_exe_loc
+    full_cmake = prefix / "share" / "cmake" / "psi4"
+    data_dir = full_data.resolve(strict=False)
+    psi4_module_loc = full_pymod.resolve(strict=False)
+    cmake_dir = full_cmake.resolve(strict=False)
+else:
+    psi4_exe_loc = executable.parent
 
-data_dir = psi4_exe_loc.joinpath(rel_data).resolve()
-psi4_module_loc = psi4_exe_loc.joinpath(rel_pymod).resolve()
-cmake_dir = psi4_exe_loc.joinpath(rel_cmake).resolve()
+    prefix = Path(r"@CMAKE_INSTALL_PREFIX@".replace("\\", "/"))
+    cmake_install_bindir = r"@CMAKE_INSTALL_BINDIR@".replace("\\", "/")
+    cmake_install_datadir = r"@CMAKE_INSTALL_DATADIR@".replace("\\", "/")
+    cmake_install_libdir = r"@CMAKE_INSTALL_LIBDIR@".replace("\\", "/")
+    pymod_install_libdir = r"@PYMOD_INSTALL_LIBDIR@".lstrip("/")
+    psi4_install_cmakedir = r"@psi4_INSTALL_CMAKEDIR@".replace("\\", "/")
+    full_pymod = (prefix / cmake_install_libdir / pymod_install_libdir / "psi4").resolve()
+    full_data = (prefix / cmake_install_datadir / "psi4").resolve()
+    full_bin = (prefix / cmake_install_bindir).resolve()
+    full_cmake = (prefix / psi4_install_cmakedir).resolve()
+    rel_pymod = os.path.relpath(full_pymod, start=full_bin)
+    rel_data = os.path.relpath(full_data, start=full_bin)
+    rel_cmake = os.path.relpath(full_cmake, start=full_bin)
+
+    data_dir = psi4_exe_loc.joinpath(rel_data).resolve()
+    psi4_module_loc = psi4_exe_loc.joinpath(rel_pymod).resolve()
+    cmake_dir = psi4_exe_loc.joinpath(rel_cmake).resolve()
+
 cmake_install_prefix = os.path.commonpath([data_dir, psi4_module_loc, psi4_exe_loc, cmake_dir])
 lib_dir = str(psi4_module_loc.parent)
 bin_dir = str(psi4_exe_loc)
 share_cmake_dir = str(cmake_dir)
 
 if args["inplace"]:
+    if psi4_wheel_mode:
+        raise ImportError("Cannot run inplace from a wheel installation.")
     # not tested after pathlib adjustments
     if "CMAKE_INSTALL_LIBDIR" not in lib_dir:
         raise ImportError("Cannot run inplace from an installed directory.")
@@ -165,7 +182,7 @@ if args["inplace"]:
         data_dir = os.path.sep.join([os.path.abspath(os.path.dirname(__file__)), "share", "psi4"])
         os.environ["PSIDATADIR"] = data_dir
 
-elif "CMAKE_INSTALL_LIBDIR" in lib_dir:
+elif (not psi4_wheel_mode) and "CMAKE_INSTALL_LIBDIR" in lib_dir:
     raise ImportError("Psi4 was not installed correctly!")
 
 # Replace input/output if unknown kwargs
@@ -195,7 +212,7 @@ if args['plugin_compile']:
         print("""Install "psi4-dev" via `conda install psi4-dev -c psi4[/label/dev]`, then reissue command.""")
 
 if args['psiapi_path']:
-    pyexe_dir = os.path.dirname(r"@Python_EXECUTABLE@")
+    pyexe_dir = os.path.dirname(sys.executable) if psi4_wheel_mode else os.path.dirname(r"@Python_EXECUTABLE@")
     print(f"""export PATH={pyexe_dir}:$PATH  # python interpreter\nexport PATH={bin_dir}:$PATH  # psi4 executable\nexport PYTHONPATH={lib_dir}:$PYTHONPATH  # psi4 pymodule""")
     # TODO Py not quite right on conda Windows and Psi include %PREFIX$. but maybe not appropriate for Win anyways
     sys.exit()

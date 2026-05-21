@@ -218,6 +218,12 @@ if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
 endif()
 message(STATUS "Psi4 install: ${CMAKE_INSTALL_PREFIX}")
 
+set(PSI4_WHEEL_MODE OFF)
+if(DEFINED SKBUILD)
+    set(PSI4_WHEEL_MODE ON)
+    message(STATUS "Psi4 wheel install layout enabled via scikit-build-core")
+endif()
+
 
 # Python use in psi4 (not incl. external/)
 # * interpreter: run the versioner in psi4-core. run tests and build docs in psi4
@@ -367,6 +373,7 @@ ExternalProject_Add(psi4-core
               -DOpenMP_pthread_LIBRARY=${OpenMP_pthread_LIBRARY}
               -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
               -DENABLE_CYTHONIZE=${ENABLE_CYTHONIZE}
+              -DPSI4_WHEEL_MODE=${PSI4_WHEEL_MODE}
               -Dpsi4_SHGSHELL_ORDERING=${psi4_SHGSHELL_ORDERING}
    CMAKE_CACHE_ARGS -DCMAKE_PREFIX_PATH:PATH=${_cmake_CMAKE_PREFIX_PATH}
               -DCMAKE_C_COMPILER_ARG1:STRING=${CMAKE_C_COMPILER_ARG1}
@@ -384,12 +391,29 @@ include(ConfigTesting)
 
 # <<<  Install  >>>
 
-install(DIRECTORY ${STAGED_INSTALL_PREFIX}/
-        DESTINATION ${CMAKE_INSTALL_PREFIX}
-        USE_SOURCE_PERMISSIONS
-        PATTERN "*.pyc" EXCLUDE)
+if(PSI4_WHEEL_MODE)
+    install(DIRECTORY ${STAGED_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBDIR}/psi4
+            DESTINATION ${SKBUILD_PLATLIB_DIR}
+            USE_SOURCE_PERMISSIONS
+            PATTERN "*.pyc" EXCLUDE)
 
-install(DIRECTORY samples
-        DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/psi4
-        USE_SOURCE_PERMISSIONS
-        PATTERN "example_psi4rc_file" EXCLUDE)
+    install(DIRECTORY ${STAGED_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/psi4
+            DESTINATION ${SKBUILD_DATA_DIR}/${CMAKE_INSTALL_DATADIR}
+            USE_SOURCE_PERMISSIONS
+            PATTERN "*.pyc" EXCLUDE)
+
+    install(DIRECTORY samples
+            DESTINATION ${SKBUILD_DATA_DIR}/${CMAKE_INSTALL_DATADIR}/psi4
+            USE_SOURCE_PERMISSIONS
+            PATTERN "example_psi4rc_file" EXCLUDE)
+else()
+    install(DIRECTORY ${STAGED_INSTALL_PREFIX}/
+            DESTINATION ${CMAKE_INSTALL_PREFIX}
+            USE_SOURCE_PERMISSIONS
+            PATTERN "*.pyc" EXCLUDE)
+
+    install(DIRECTORY samples
+            DESTINATION ${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_DATADIR}/psi4
+            USE_SOURCE_PERMISSIONS
+            PATTERN "example_psi4rc_file" EXCLUDE)
+endif()
