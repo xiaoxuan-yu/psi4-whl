@@ -95,6 +95,7 @@ jobs:
       OVERLAY_REF: ${{ needs.resolve.outputs.overlay_ref }}
       RELEASE_TAG: ${{ needs.resolve.outputs.release_tag }}
       RELEASE_VERSION: ${{ needs.resolve.outputs.release_version }}
+      MANYLINUX_PYTHON_BIN: /opt/python/cp311-cp311/bin
     steps:
       - uses: actions/checkout@v4
         with:
@@ -115,9 +116,11 @@ jobs:
           xargs git checkout "${OVERLAY_REF}" -- < "$RUNNER_TEMP/psi4-whl-overlay-files.txt"
           git status --short
 
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
+      - name: Select manylinux CPython 3.11
+        run: |
+          echo "${MANYLINUX_PYTHON_BIN}" >> "$GITHUB_PATH"
+          python --version
+          pip --version
 
       - name: Install YAML helper
         run: python -m pip install PyYAML
